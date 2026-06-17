@@ -74,10 +74,10 @@
             const uniqueBannedFound = [...new Set(bannedFound)].sort();
 
             if (uniqueBannedFound.length === 0) {
-                output.textContent = "Yes. This deck is valid. No banned cards found.";
+                output.textContent = "This deck appears VALID. No banned cards found.";
             } else {
                 output.textContent =
-                    "No. This deck is invalid.\n\nBanned cards found:\n" +
+                    "This deck is NOT VALID.\n\nBanned cards found:\n" +
                     uniqueBannedFound.map(card => "- " + card).join("\n");
             }
         }
