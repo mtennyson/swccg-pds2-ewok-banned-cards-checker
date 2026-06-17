@@ -9,26 +9,59 @@
     <p>Upload your deck file to check for banned cards.</p>
 
     <input type="file" id="deckFile" accept=".txt,.xml">
-    <button onclick="checkDeck()">Check Deck</button>
 
     <pre id="output"></pre>
 
     <script>
+        document.getElementById("deckFile").addEventListener("change", checkDeck);
+
         async function checkDeck() {
             const fileInput = document.getElementById("deckFile");
             const output = document.getElementById("output");
 
+            output.textContent = "";
+
             if (fileInput.files.length === 0) {
-                output.textContent = "Please upload a deck file.";
                 return;
             }
 
-            const bannedResponse = await fetch("banned-cards.txt");
-            const bannedText = await bannedResponse.text();
-            const deckText = await fileInput.files[0].text();
+            let bannedText;
+
+            try {
+                const bannedResponse = await fetch("banned-cards.txt");
+
+                if (!bannedResponse.ok) {
+                    output.textContent = "Error loading list of banned cards.";
+                    return;
+                }
+
+                bannedText = await bannedResponse.text();
+            } catch (error) {
+                output.textContent = "Error loading list of banned cards.";
+                return;
+            }
+
+            let deckText;
+
+            try {
+                deckText = await fileInput.files[0].text();
+            } catch (error) {
+                output.textContent = "Error reading uploaded deck file.";
+                return;
+            }
 
             const bannedCards = getCardTitles(bannedText);
             const deckCards = getCardTitles(deckText);
+
+            if (bannedCards.size === 0) {
+                output.textContent = "Error loading list of banned cards.";
+                return;
+            }
+
+            if (deckCards.size === 0 || !appearsToBeDeck(deckText)) {
+                output.textContent = "Uploaded file does not appear to be a properly formatted deck.";
+                return;
+            }
 
             const bannedFound = [];
 
@@ -53,6 +86,10 @@
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
+            if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                return new Set();
+            }
+
             const cards = xmlDoc.getElementsByTagName("card");
             const titles = new Set();
 
@@ -65,6 +102,25 @@
             }
 
             return titles;
+        }
+
+        function appearsToBeDeck(xmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                return false;
+            }
+
+            const root = xmlDoc.documentElement;
+
+            if (!root || root.tagName !== "deck") {
+                return false;
+            }
+
+            const cards = xmlDoc.getElementsByTagName("card");
+
+            return cards.length > 0;
         }
     </script>
 </body>
