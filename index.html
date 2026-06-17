@@ -23,7 +23,7 @@
                 return;
             }
 
-            const bannedResponse = await fetch("banned-cards.xml");
+            const bannedResponse = await fetch("banned-cards.txt");
             const bannedText = await bannedResponse.text();
             const deckText = await fileInput.files[0].text();
 
