@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SWCCG PDS2 Ewok Banned Cards Checker</title>
+</head>
+<body>
+    <h1>SWCCG PDS2 Ewok Banned Cards Checker</h1>
+
+    <p>Upload your deck file to check for banned cards.</p>
+
+    <input type="file" id="deckFile" accept=".txt,.xml">
+    <button onclick="checkDeck()">Check Deck</button>
+
+    <pre id="output"></pre>
+
+    <script>
+        async function checkDeck() {
+            const fileInput = document.getElementById("deckFile");
+            const output = document.getElementById("output");
+
+            if (fileInput.files.length === 0) {
+                output.textContent = "Please upload a deck file.";
+                return;
+            }
+
+            const bannedResponse = await fetch("banned-cards.xml");
+            const bannedText = await bannedResponse.text();
+            const deckText = await fileInput.files[0].text();
+
+            const bannedCards = getCardTitles(bannedText);
+            const deckCards = getCardTitles(deckText);
+
+            const bannedFound = [];
+
+            for (const card of deckCards) {
+                if (bannedCards.has(card)) {
+                    bannedFound.push(card);
+                }
+            }
+
+            const uniqueBannedFound = [...new Set(bannedFound)].sort();
+
+            if (uniqueBannedFound.length === 0) {
+                output.textContent = "Yes. This deck is valid. No banned cards found.";
+            } else {
+                output.textContent =
+                    "No. This deck is invalid.\n\nBanned cards found:\n" +
+                    uniqueBannedFound.map(card => "- " + card).join("\n");
+            }
+        }
+
+        function getCardTitles(xmlText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            const cards = xmlDoc.getElementsByTagName("card");
+            const titles = new Set();
+
+            for (let i = 0; i < cards.length; i++) {
+                const title = cards[i].getAttribute("title");
+
+                if (title) {
+                    titles.add(title.trim());
+                }
+            }
+
+            return titles;
+        }
+    </script>
+</body>
+</html>
