@@ -2,15 +2,66 @@
 <html>
 <head>
     <title>SWCCG PDS2 Ewok Banned Cards Checker</title>
+
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f5f5;
+        color: #222;
+        max-width: 700px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    .container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+        margin-top: 0;
+    }
+
+    input {
+        margin: 15px 0;
+    }
+
+    #output {
+        padding: 15px;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        font-size: 1rem;
+    }
+
+    .valid {
+        background: #e6f4ea;
+        border: 1px solid #34a853;
+        color: #137333;
+    }
+
+    .invalid {
+        background: #fce8e6;
+        border: 1px solid #d93025;
+        color: #a50e0e;
+    }
+
+    .error {
+        background: #fff4e5;
+        border: 1px solid #f9ab00;
+        color: #8a5a00;
+    }
+    </style>
+    
 </head>
 <body>
-    <h1>SWCCG PDS2 Ewok Banned Cards Checker</h1>
-
-    <p>Upload your deck file to check for banned cards.</p>
-
-    <input type="file" id="deckFile" accept=".txt,.xml">
-
-    <pre id="output"></pre>
+    <div class="container">
+        <h1>SWCCG PDS2 Ewok Banned Cards Checker</h1>
+        <p>Upload your deck file to check for banned cards.</p>
+        <input type="file" id="deckFile" accept=".txt,.xml">
+        <pre id="output"></pre>
+    </div>
 
     <script>
         document.getElementById("deckFile").addEventListener("change", checkDeck);
@@ -19,6 +70,7 @@
             const fileInput = document.getElementById("deckFile");
             const output = document.getElementById("output");
 
+            output.className = "";
             output.textContent = "";
 
             if (fileInput.files.length === 0) {
@@ -31,12 +83,14 @@
                 const bannedResponse = await fetch("banned-cards.txt");
 
                 if (!bannedResponse.ok) {
+                    output.className = "invalid";
                     output.textContent = "Error loading list of banned cards.";
                     return;
                 }
 
                 bannedText = await bannedResponse.text();
             } catch (error) {
+                output.className = "invalid";
                 output.textContent = "Error loading list of banned cards.";
                 return;
             }
@@ -46,6 +100,7 @@
             try {
                 deckText = await fileInput.files[0].text();
             } catch (error) {
+                output.className = "invalid";
                 output.textContent = "Error reading uploaded deck file.";
                 return;
             }
@@ -54,11 +109,13 @@
             const deckCards = getCardTitles(deckText);
 
             if (bannedCards.size === 0) {
+                output.className = "invalid";
                 output.textContent = "Error loading list of banned cards.";
                 return;
             }
 
             if (deckCards.size === 0 || !appearsToBeDeck(deckText)) {
+                output.className = "invalid";
                 output.textContent = "Uploaded file does not appear to be a properly formatted deck.";
                 return;
             }
@@ -74,8 +131,10 @@
             const uniqueBannedFound = [...new Set(bannedFound)].sort();
 
             if (uniqueBannedFound.length === 0) {
+                output.className = "valid";
                 output.textContent = "This deck appears VALID. No banned cards found.";
             } else {
+                output.className = "invalid";
                 output.textContent =
                     "This deck is NOT VALID.\n\nBanned cards found:\n" +
                     uniqueBannedFound.map(card => "- " + card).join("\n");
