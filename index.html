@@ -72,9 +72,11 @@
     </div>
 
     <script>
-        document.getElementById("deckFile").addEventListener("change", checkDeck);
+        document.getElementById("deckFile").addEventListener("change", checkUploadedFile);
+        document.getElementById("deckText").addEventListener("input", checkPastedDeckList);
 
-        async function checkDeck() {
+        async function checkUploadedFile() {
+
             const fileInput = document.getElementById("deckFile");
             const output = document.getElementById("output");
 
@@ -85,20 +87,10 @@
                 return;
             }
 
-            let bannedText;
+            const bannedCards = await loadBannedCards();
 
-            try {
-                const bannedResponse = await fetch("banned-cards.txt");
-
-                if (!bannedResponse.ok) {
-                    output.className = "invalid";
-                    output.textContent = "Error loading list of banned cards.";
-                    return;
-                }
-
-                bannedText = await bannedResponse.text();
-            } catch (error) {
-                output.className = "invalid";
+            if (bannedCards === null) {
+                output.className = "error";
                 output.textContent = "Error loading list of banned cards.";
                 return;
             }
@@ -107,27 +99,84 @@
 
             try {
                 deckText = await fileInput.files[0].text();
-            } catch (error) {
-                output.className = "invalid";
+            }
+            catch (error) {
+                output.className = "error";
                 output.textContent = "Error reading uploaded deck file.";
                 return;
             }
 
-            const bannedCards = getCardTitles(bannedText);
             const deckCards = getCardTitles(deckText);
 
-            if (bannedCards.size === 0) {
-                output.className = "invalid";
-                output.textContent = "Error loading list of banned cards.";
-                return;
-            }
-
             if (deckCards.size === 0 || !appearsToBeDeck(deckText)) {
-                output.className = "invalid";
+                output.className = "error";
                 output.textContent = "Uploaded file does not appear to be a properly formatted deck.";
                 return;
             }
 
+            checkForBannedCards(deckCards, bannedCards);
+        }
+
+        async function checkPastedDeckList() {
+
+            const output = document.getElementById("output");
+
+            output.className = "";
+            output.textContent = "";
+
+            const bannedCards = await loadBannedCards();
+
+            if (bannedCards === null) {
+                output.className = "error";
+                output.textContent = "Error loading list of banned cards.";
+                return;
+            }
+
+            const deckText =
+                document.getElementById("deckText").value.trim();
+
+            if (deckText.length === 0) {
+                return;
+            }
+
+            const deckCards =
+                getCardTitlesFromPlainText(deckText);
+
+            if (deckCards.size === 0) {
+                output.className = "error";
+                output.textContent = "Error reading deck list.";
+                return;
+            }
+
+            checkForBannedCards(deckCards, bannedCards);
+        }
+
+        async function loadBannedCards() {
+
+            let bannedText;
+
+            try {
+                const bannedResponse = await fetch("banned-cards.txt");
+
+                if (!bannedResponse.ok) {
+                    return null;
+                }
+
+                bannedText = await bannedResponse.text();
+            } catch (error) {
+                return null;
+            }
+
+            const bannedCards = getCardTitles(bannedText);
+
+            if (bannedCards.size === 0) {
+                return null;
+            }
+
+            return bannedCards;
+        }
+
+        function checkForBannedCards(deckCards, bannedCards) {
             const bannedFound = [];
 
             for (const card of deckCards) {
@@ -174,18 +223,18 @@
         function getCardTitlesFromPlainText(text) {
             const titles = new Set();
             const lines = text.split("\n");
-        
+
             for (let line of lines) {
                 line = line.trim();
                 const match = line.match(/^\d+x\s+(.+)$/i);
-        
+
                 if (match) {
                     titles.add(match[1].trim());
                 }
             }
-        
+
             return titles;
-        }        
+        }
 
         function appearsToBeDeck(xmlText) {
             const parser = new DOMParser();
