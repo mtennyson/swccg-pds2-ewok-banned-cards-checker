@@ -4,6 +4,7 @@
     <title>SWCCG PDS2 Ewok Banned Cards Checker</title>
 
     <style>
+        
     body {
         font-family: Arial, sans-serif;
         background: #f5f5f5;
@@ -52,21 +53,116 @@
         border: 1px solid #f9ab00;
         color: #8a5a00;
     }
+
+    .tabs {
+        margin-bottom: 20px;
+    }
+    
+    .tabs button {
+        padding: 10px 16px;
+        border: 1px solid #ccc;
+        background: #eee;
+        cursor: pointer;
+    }
+    
+    .tabs button.active {
+        background: white;
+        border-bottom: 2px solid #333;
+        font-weight: bold;
+    }
+    
+    #uploadSection,
+    #pasteSection {
+        margin-bottom: 20px;
+    }
+    
+    textarea {
+        width: 100%;
+        box-sizing: border-box;
+    } 
+
+    .banned-link {
+        margin-top: 25px;
+        text-align: center;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.45);
+    }
+    
+    .modal-content {
+        background: white;
+        max-width: 600px;
+        margin: 80px auto;
+        padding: 25px;
+        border-radius: 10px;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    .close {
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    #bannedCardList {
+        white-space: pre-wrap;
+    }
+        
     </style>
     
 </head>
 <body>
     <div class="container">
-        <h1>SWCCG PDS2 Ewok Banned Cards Checker</h1>
-        <p>Upload your deck file to check for banned cards.</p>
-        <input type="file" id="deckFile" accept=".txt,.xml">
+        <h1>SWCCG PDS2 Ewok Format</h1>
+        <h2>Banned Cards Checker</h2>
+        <p>Upload your deck file OR paste your decklist below to check for banned cards.</p>
+        
+        <div class="tabs">
+            <button id="uploadTab" class="active" onclick="showUpload()">Upload Deck</button>
+            <button id="pasteTab" onclick="showPaste()">Paste Decklist</button>
+        </div>        
+
+        <div id="uploadSection">
+            <input type="file" id="deckFile" accept=".txt,.xml">
+        </div>
+
+        <div id="pasteSection" style="display: none;">
+            <textarea
+                id="deckText"
+                rows="15"
+                cols="80"
+                placeholder="Paste a deck list here..."></textarea>
+        </div>
+        
         <pre id="output"></pre>
+
+        <p class="banned-link"><a href="#" onclick="showBannedCards(); return false;">List of Banned Cards</a></p>
+    </div>
+
+    <div id="bannedModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBannedCards()">&times;</span>
+            <h2>Banned Cards</h2>
+            <pre id="bannedCardList">Loading...</pre>
+        </div>
     </div>
 
     <script>
-        document.getElementById("deckFile").addEventListener("change", checkDeck);
+        document.getElementById("deckFile").addEventListener("change", checkUploadedFile);
+        document.getElementById("deckText").addEventListener("input", checkPastedDeckList);
 
-        async function checkDeck() {
+        async function checkUploadedFile() {
+
             const fileInput = document.getElementById("deckFile");
             const output = document.getElementById("output");
 
@@ -77,20 +173,10 @@
                 return;
             }
 
-            let bannedText;
+            const bannedCards = await loadBannedCards();
 
-            try {
-                const bannedResponse = await fetch("banned-cards.txt");
-
-                if (!bannedResponse.ok) {
-                    output.className = "invalid";
-                    output.textContent = "Error loading list of banned cards.";
-                    return;
-                }
-
-                bannedText = await bannedResponse.text();
-            } catch (error) {
-                output.className = "invalid";
+            if (bannedCards === null) {
+                output.className = "error";
                 output.textContent = "Error loading list of banned cards.";
                 return;
             }
@@ -99,27 +185,84 @@
 
             try {
                 deckText = await fileInput.files[0].text();
-            } catch (error) {
-                output.className = "invalid";
+            }
+            catch (error) {
+                output.className = "error";
                 output.textContent = "Error reading uploaded deck file.";
                 return;
             }
 
-            const bannedCards = getCardTitles(bannedText);
             const deckCards = getCardTitles(deckText);
 
-            if (bannedCards.size === 0) {
-                output.className = "invalid";
-                output.textContent = "Error loading list of banned cards.";
-                return;
-            }
-
             if (deckCards.size === 0 || !appearsToBeDeck(deckText)) {
-                output.className = "invalid";
+                output.className = "error";
                 output.textContent = "Uploaded file does not appear to be a properly formatted deck.";
                 return;
             }
 
+            checkForBannedCards(deckCards, bannedCards);
+        }
+
+        async function checkPastedDeckList() {
+
+            const output = document.getElementById("output");
+
+            output.className = "";
+            output.textContent = "";
+
+            const bannedCards = await loadBannedCards();
+
+            if (bannedCards === null) {
+                output.className = "error";
+                output.textContent = "Error loading list of banned cards.";
+                return;
+            }
+
+            const deckText =
+                document.getElementById("deckText").value.trim();
+
+            if (deckText.length === 0) {
+                return;
+            }
+
+            const deckCards =
+                getCardTitlesFromPlainText(deckText);
+
+            if (deckCards.size === 0) {
+                output.className = "error";
+                output.textContent = "Error reading deck list.";
+                return;
+            }
+
+            checkForBannedCards(deckCards, bannedCards);
+        }
+
+        async function loadBannedCards() {
+
+            let bannedText;
+
+            try {
+                const bannedResponse = await fetch("banned-cards.txt");
+
+                if (!bannedResponse.ok) {
+                    return null;
+                }
+
+                bannedText = await bannedResponse.text();
+            } catch (error) {
+                return null;
+            }
+
+            const bannedCards = getCardTitles(bannedText);
+
+            if (bannedCards.size === 0) {
+                return null;
+            }
+
+            return bannedCards;
+        }
+
+        function checkForBannedCards(deckCards, bannedCards) {
             const bannedFound = [];
 
             for (const card of deckCards) {
@@ -163,6 +306,22 @@
             return titles;
         }
 
+        function getCardTitlesFromPlainText(text) {
+            const titles = new Set();
+            const lines = text.split("\n");
+
+            for (let line of lines) {
+                line = line.trim();
+                const match = line.match(/^\d+x\s+(.+)$/i);
+
+                if (match) {
+                    titles.add(match[1].trim());
+                }
+            }
+
+            return titles;
+        }
+
         function appearsToBeDeck(xmlText) {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, "text/xml");
@@ -181,6 +340,53 @@
 
             return cards.length > 0;
         }
+
+        function showUpload() {
+            document.getElementById("uploadSection").style.display = "block";
+            document.getElementById("pasteSection").style.display = "none";
+        
+            document.getElementById("uploadTab").className = "active";
+            document.getElementById("pasteTab").className = "";
+        
+            document.getElementById("output").className = "";
+            document.getElementById("output").textContent = "";
+        }
+        
+        function showPaste() {
+            document.getElementById("uploadSection").style.display = "none";
+            document.getElementById("pasteSection").style.display = "block";
+        
+            document.getElementById("uploadTab").className = "";
+            document.getElementById("pasteTab").className = "active";
+        
+            document.getElementById("output").className = "";
+            document.getElementById("output").textContent = "";
+        }
+
+        async function showBannedCards() {
+            const modal = document.getElementById("bannedModal");
+            const list = document.getElementById("bannedCardList");
+        
+            modal.style.display = "block";
+            list.textContent = "Loading...";
+        
+            const bannedCards = await loadBannedCards();
+        
+            if (bannedCards === null) {
+                list.textContent = "Error loading list of banned cards.";
+                return;
+            }
+        
+            list.textContent = [...bannedCards]
+                .sort()
+                .map(card => "- " + card)
+                .join("\n");
+        }
+        
+        function closeBannedCards() {
+            document.getElementById("bannedModal").style.display = "none";
+        }        
+        
     </script>
 </body>
 </html>
