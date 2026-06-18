@@ -52,22 +52,60 @@
         border: 1px solid #f9ab00;
         color: #8a5a00;
     }
+
+    .tabs {
+        margin-bottom: 20px;
+    }
+    
+    .tabs button {
+        padding: 10px 16px;
+        border: 1px solid #ccc;
+        background: #eee;
+        cursor: pointer;
+    }
+    
+    .tabs button.active {
+        background: white;
+        border-bottom: 2px solid #333;
+        font-weight: bold;
+    }
+    
+    #uploadSection,
+    #pasteSection {
+        margin-bottom: 20px;
+    }
+    
+    textarea {
+        width: 100%;
+        box-sizing: border-box;
+    } 
+        
     </style>
     
 </head>
 <body>
     <div class="container">
-        <h1>SWCCG PDS2 Ewok Banned Cards Checker</h1>
-        <p>Upload your deck file to check for banned cards.</p>
-        <input type="file" id="deckFile" accept=".txt,.xml">
+        <h1>SWCCG PDS2 Ewok Format</h1>
+        <h2>Banned Cards Checker</h2>
+        <p>Upload your deck file OR paste your decklist below to check for banned cards.</p>
+        
+        <div class="tabs">
+            <button id="uploadTab" class="active" onclick="showUpload()">Upload Deck</button>
+            <button id="pasteTab" onclick="showPaste()">Paste Decklist</button>
+        </div>        
 
-        <p><strong>OR</strong></p>
+        <div id="uploadSection">
+            <input type="file" id="deckFile" accept=".txt,.xml">
+        </div>
 
-        <textarea
-            id="deckText"
-            rows="15"
-            cols="80"
-            placeholder="Paste a deck list here..."></textarea>
+        <div id="pasteSection" style="display: none;">
+            <textarea
+                id="deckText"
+                rows="15"
+                cols="80"
+                placeholder="Paste a deck list here..."></textarea>
+        </div>
+        
         <pre id="output"></pre>
     </div>
 
@@ -254,6 +292,29 @@
 
             return cards.length > 0;
         }
+
+        function showUpload() {
+            document.getElementById("uploadSection").style.display = "block";
+            document.getElementById("pasteSection").style.display = "none";
+        
+            document.getElementById("uploadTab").className = "active";
+            document.getElementById("pasteTab").className = "";
+        
+            document.getElementById("output").className = "";
+            document.getElementById("output").textContent = "";
+        }
+        
+        function showPaste() {
+            document.getElementById("uploadSection").style.display = "none";
+            document.getElementById("pasteSection").style.display = "block";
+        
+            document.getElementById("uploadTab").className = "";
+            document.getElementById("pasteTab").className = "active";
+        
+            document.getElementById("output").className = "";
+            document.getElementById("output").textContent = "";
+        }
+        
     </script>
 </body>
 </html>
